@@ -10,9 +10,16 @@
 
 #pragma once
 
-#include "turbojpeg.h"
+#include "../libs/turbo-jpeg/include/turbojpeg.h"
 #include "ofMain.h"
-#include <fstream.h>
+
+#if defined( TARGET_OSX ) || defined( TARGET_LINUX )
+	#include <fstream.h>
+#else
+	#include <fstream>
+#endif
+
+#define STATIC_BUFFER_SIZE 10000000
 
 class ofxTurboJpeg{
 	
@@ -20,14 +27,22 @@ class ofxTurboJpeg{
 	
 		ofxTurboJpeg();
 		~ofxTurboJpeg();
+
+		void setBufferSize(int bufferSize);
 	
-		void save( ofImage * img, string path, int jpegQuality );	
+		void save( ofImage * img, string path, int jpegQuality = 95 );	
 		ofImage* load(string path);
+		bool load(string path, ofImage* dstImg);
 	
 	private:	
 
 		tjhandle handleCompress;
 		tjhandle handleDecompress;
-	
+
+		//speed increased roughly 10% by not re-allocating on every load!
+		int fileBufferSize;
+		unsigned char * fileBuffer;	
+		int imageBufferSize;
+		unsigned char * imageBuffer;	
 };
 	

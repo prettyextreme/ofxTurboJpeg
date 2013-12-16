@@ -10,19 +10,13 @@
 #include "ofxTurboJpeg.h"
 #include <sys/stat.h>
 
-ofxTurboJpeg::ofxTurboJpeg(){
+ofxTurboJpeg::ofxTurboJpeg(int defaultSize){
 	
-	handleCompress = tjInitCompress();	
-	if (handleCompress == NULL){
-		printf("Error in tjInitCompress():\n%s\n", tjGetErrorStr());
-	}
+	handleCompress = NULL;//tjInitCompress();	
 
-	handleDecompress = tjInitDecompress();
-	if (handleDecompress == NULL){
-		printf("Error in tjInitDeCompress():\n%s\n", tjGetErrorStr());
-	}
+	handleDecompress = NULL;//tjInitDecompress();
 	
-	fileBufferSize = 10000000;
+	fileBufferSize = defaultSize;
 	imageBufferSize = fileBufferSize;
 	fileBuffer = (unsigned char*) malloc ( fileBufferSize ); 
 	imageBuffer = (unsigned char*) malloc ( imageBufferSize ); 
@@ -59,25 +53,54 @@ void ofxTurboJpeg::setBufferSize(int bufferSize){
 	}
 }
 
-//rgb only for now...
-void ofxTurboJpeg::save( ofImage * img, string fileName, int jpegQuality ){
+void ofxTurboJpeg::save( ofImage * img, string saveFileName, int jpegQuality ){
 	
-	if (img == NULL) return;
+	if (img == NULL){
+		return;
+	}
+
+	save(img->getPixels(), saveFileName, img->width, img->height, jpegQuality);
+
+}
+
+void ofxTurboJpeg::save( ofFbo * fbo, string saveFileName, int jpegQuality ){
+	
+	if (fbo == NULL){
+		return;
+	}
+
+	savePixelBuffer.allocate(fbo->getWidth(), fbo->getHeight(), OF_IMAGE_COLOR);
+	fbo->readToPixels(savePixelBuffer);
+	save(savePixelBuffer.getPixels(), saveFileName, fbo->getWidth(), fbo->getHeight(), jpegQuality);
+
+}
+
+//rgb only for now...
+void ofxTurboJpeg::save( unsigned char * pixels, string saveFileName, int width, int height, int jpegQuality ){
+	
+	if (pixels == NULL) return;
 
 	int pitch = 0, flags = 0, jpegsubsamp = 0;
 	int bpp = 3;	//rgb only for now...
 
 	unsigned char * output;
-	unsigned long size = sizeof(char) * img->width * img->height * bpp;
+	unsigned long size = sizeof(char) * width * height * bpp;
 	if(size <= fileBufferSize){
 		output = fileBuffer;
 	}else{
 		output = (unsigned char *)malloc(size);
 	}
 
-	tjCompress(handleCompress, img->getPixels() , img->width, pitch, img->height, bpp, output, &size, jpegsubsamp, jpegQuality, flags);
+	if(handleCompress == NULL)
+		handleCompress = tjInitCompress();	
+	
+	if (handleCompress == NULL){
+		printf("Error in tjInitCompress():\n%s\n", tjGetErrorStr());
+	}
+	
+	tjCompress(handleCompress, pixels , width, pitch, height, bpp, output, &size, jpegsubsamp, jpegQuality, flags);
 
-	string filePath = ofToDataPath( fileName, false);
+	string filePath = ofToDataPath( saveFileName, false);
 	FILE * file = fopen( filePath.c_str(), "wb");
 	fwrite ( output , 1 , size , file );
 	fclose( file);
@@ -124,9 +147,22 @@ bool ofxTurboJpeg::load(string fileName, ofImage* dstImg){
 		fclose(file);
 		
 		int w; int h; int subsamp;
+		
+		if(handleDecompress==NULL)
+			handleDecompress = tjInitDecompress();
+		
+		if (handleDecompress == NULL){
+			printf("Error in tjInitDeCompress():\n%s\n", tjGetErrorStr());
+		}
+
 		int ok = tjDecompressHeader2( handleDecompress, pixels, size, &w, &h, &subsamp );
 		if (ok!=0) {printf("Error in tjDecompressHeader2():\n%s\n", tjGetErrorStr());}
 		
+		if(w<0 || h<0 || size<0){
+			ofLog(OF_LOG_ERROR, "ofxTurboJpeg::load() >> Image %s error decompressing image", fileName.c_str());
+			return false;
+		}
+
 		unsigned char* rgbData;
 		int useImageSize = 3 * w * h * sizeof(char);
 		if(useImageSize <= imageBufferSize){

@@ -25,12 +25,14 @@ class ofxTurboJpeg{
 	
 	public:
 	
-		ofxTurboJpeg();
+		ofxTurboJpeg(int defaultSize = 10000000);
 		~ofxTurboJpeg();
 
 		void setBufferSize(int bufferSize);
 	
 		void save( ofImage * img, string path, int jpegQuality = 95 );	
+		void save( unsigned char * pixels, string fileName, int width, int height, int jpegQuality = 95 );
+		void save( ofFbo * fbo, string fileName, int jpegQuality = 95 );
 		ofImage* load(string path);
 		bool load(string path, ofImage* dstImg);
 	
@@ -44,5 +46,7 @@ class ofxTurboJpeg{
 		unsigned char * fileBuffer;	
 		int imageBufferSize;
 		unsigned char * imageBuffer;	
+		
+		ofPixels savePixelBuffer;
 };
 	

@@ -121,6 +121,66 @@ ofImage* ofxTurboJpeg::load(string fileName){
 
 }
 
+bool ofxTurboJpeg::load(string fileName, unsigned char* rgbData, int bufferSize){
+    
+	string filePath = ofToDataPath( fileName, false);
+	FILE * file = fopen( filePath.c_str(), "rb");
+    
+    
+	if ( file != NULL){
+        
+		int flags = 0;
+		flags = 0; //TJ_FASTUPSAMPLE would be faster but worse!
+        
+		struct stat info;
+		stat(filePath.c_str(), &info);
+        
+		unsigned char * pixels;
+		int size = info.st_size * sizeof(char);
+		if(size <= fileBufferSize){
+			pixels = fileBuffer;
+		}else{
+			pixels = (unsigned char *)malloc(size);
+		}
+        
+		fread(pixels, info.st_size, 1, file);
+		fclose(file);
+		
+		int w; int h; int subsamp;
+		
+		if(handleDecompress==NULL)
+			handleDecompress = tjInitDecompress();
+		
+		if (handleDecompress == NULL){
+			printf("Error in tjInitDeCompress():\n%s\n", tjGetErrorStr());
+		}
+        
+		int ok = tjDecompressHeader2( handleDecompress, pixels, size, &w, &h, &subsamp );
+		if (ok!=0) {printf("Error in tjDecompressHeader2():\n%s\n", tjGetErrorStr());}
+		
+		if(w<0 || h<0 || size<0){
+			ofLog(OF_LOG_ERROR, "ofxTurboJpeg::load() >> Image %s error decompressing image", fileName.c_str());
+			return false;
+		}
+        
+        if(bufferSize < w*h*3){
+			ofLog(OF_LOG_ERROR, "ofxTurboJpeg::load() >> target buffer too small!");
+			return false;
+		}
+		//printf("jpeg is %d x %d\n", w, h);
+		// 3 >> rgb only for now
+		tjDecompress( handleDecompress, pixels, size, rgbData, w, w*3, h, 3 /* rgb only for now*/, 0 );
+		
+    
+        
+		return true;
+        
+	}else {
+		ofLog(OF_LOG_ERROR, "ofxTurboJpeg::load() >> Image %s not found", fileName.c_str());
+		return false;
+	}
+}
+
 bool ofxTurboJpeg::load(string fileName, ofImage* dstImg){
 
 	string filePath = ofToDataPath( fileName, false);

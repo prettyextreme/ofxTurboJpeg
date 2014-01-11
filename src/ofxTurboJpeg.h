@@ -34,7 +34,8 @@ class ofxTurboJpeg{
 		void save( unsigned char * pixels, string fileName, int width, int height, int jpegQuality = 95 );
 		void save( ofFbo * fbo, string fileName, int jpegQuality = 95 );
 		ofImage* load(string path);
-		bool load(string path, ofImage* dstImg);
+        bool load(string path, ofImage* dstImg);
+        bool load(string fileName, unsigned char* rgbData, int bufferSize);
 	
 	private:	
 
